@@ -1,0 +1,11 @@
+# Calcolo della differenza in giorni
+# Sottraendo due colonne datetime si ottiene un oggetto Timedelta.
+# .dt.days estrae il numero intero di giorni.
+df['age_days'] = (df['sampling_date'] - df['birth']).dt.days
+
+# Conversione esplicita in int64 (anche se dt.days lo restituisce solitamente di default)
+df['age_days'] = df['age_days'].astype('int64')
+
+# Verifica del risultato
+print(df[['birth', 'sampling_date', 'age_days']].head())
+print(df['age_days'].dtype)
