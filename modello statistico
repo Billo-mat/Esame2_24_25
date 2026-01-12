@@ -1,0 +1,33 @@
+# Variabili osservate
+M = df['age_days'].values
+VGF_obs = df['VGF'].values
+
+# 2. Definizione del modello PyMC
+with pm.Model() as model:
+    # Parametro alpha: Normale(mu=0, sigma=2)
+    alpha = pm.Normal('alpha', mu=0, sigma=2)
+    
+    # Parametro beta: Normale(mu=1, sigma=2)
+    beta = pm.Normal('beta', mu=1, sigma=2)
+    
+    # Parametro gamma: Esponenziale(lambda=1)
+    # In PyMC, lam è il parametro della distribuzione esponenziale
+    gamma = pm.Exponential('gamma', lam=1)
+    
+    # Media del modello: mu = alpha + beta * M
+    mu = alpha + beta * M
+    
+    # Verosimiglianza (Likelihood): VGF osservato ~ Normale(mu, gamma)
+    # Nota: gamma qui funge da deviazione standard (sigma)
+    vgf = pm.Normal('vgf_obs', mu=mu, sigma=gamma, observed=VGF_obs)
+    
+    # Campionamento (MCMC)
+    # draws=1000 è lo standard, tune=1000 serve per il riscaldamento (warm-up)
+    trace = pm.sample(draws=1000, tune=1000, chains=2, random_seed=42)
+
+# 3. Visualizzazione della distribuzione a posteriori
+az.plot_posterior(trace)
+plt.show()
+
+# Stampa del riassunto statistico (media, deviazione standard, intervalli HDI)
+print(az.summary(trace))
