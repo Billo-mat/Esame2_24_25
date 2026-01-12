@@ -1,0 +1,36 @@
+import pandas as pd
+import matplotlib.pyplot as plt
+
+# 1. Caricamento dati e conversione della data di campionamento
+df = pd.read_csv('brown_bear_blood.csv', parse_dates=['sampling_date'])
+
+# 2. Estrazione del mese (da 1 a 12)
+df['sampling_month'] = df['sampling_date'].dt.month
+
+# 3. Suddivisione dei dati per sesso
+males = df[df['sex'] == 'M']
+females = df[df['sex'] == 'F']
+
+# 4. Creazione della figura con due subplot (uno accanto all'altro)
+fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 6), sharey=True)
+
+# Definiamo i nomi dei mesi per le etichette
+month_names = ['Gen', 'Feb', 'Mar', 'Apr', 'Mag', 'Giu', 'Lug', 'Ago', 'Set', 'Ott', 'Nov', 'Dic']
+
+# Grafico per i Maschi
+ax1.hist(males['sampling_month'], bins=range(1, 14), rwidth=0.8, color='skyblue', align='left')
+ax1.set_title('Orsi campionati per mese (Maschi)')
+ax1.set_xlabel('Mese')
+ax1.set_ylabel('Numero di Orsi')
+ax1.set_xticks(range(1, 13))
+ax1.set_xticklabels(month_names)
+
+# Grafico per le Femmine
+ax2.hist(females['sampling_month'], bins=range(1, 14), rwidth=0.8, color='pink', align='left')
+ax2.set_title('Orsi campionati per mese (Femmine)')
+ax2.set_xlabel('Mese')
+ax2.set_xticks(range(1, 13))
+ax2.set_xticklabels(month_names)
+
+plt.tight_layout()
+plt.show()
