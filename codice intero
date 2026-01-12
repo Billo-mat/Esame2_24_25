@@ -1,0 +1,205 @@
+import pandas as pd
+from datetime import datetime
+import matplotlib.pyplot as plt
+import pymc as pm
+import arviz as az
+
+# Caricamento del file con i nomi corretti delle colonne presenti nel CSV
+df = pd.read_csv('brown_bear_blood.csv', parse_dates=['birth', 'sampling_date'])
+
+
+# Verifica dei tipi di dato
+print(df.info())
+
+df['age_days'] = (df['sampling_date'] - df['birth']).dt.days
+
+# Conversione esplicita in int64 (anche se dt.days lo restituisce solitamente di default)
+df['age_days'] = df['age_days'].astype('int64')
+
+# Verifica del risultato
+print(df[['birth', 'sampling_date', 'age_days']].head())
+print(df['age_days'].dtype)
+
+
+def date_from_sample_id(sample_id: str) -> tuple[int, int, int]:
+    """
+    Estrae anno, mese e giorno dai primi sei caratteri di una stringa.
+    L'anno viene calcolato sommando 2000 ai primi due caratteri.
+
+    >>> date_from_sample_id("201101 Daichi")
+    (2020, 11, 1)
+    """
+    # Estrazione delle sottostringhe e conversione in intero
+    year_digits = int(sample_id[0:2])
+    month = int(sample_id[2:4])
+    day = int(sample_id[4:6])
+    
+    # Calcolo dell'anno completo
+    year = 2000 + year_digits
+    
+    return year, month, day
+
+def check_sampling_date(row):
+    try:
+        # 1. Proviamo a estrarre la data dal Sample_ID usando la tua funzione
+        y, m, d = date_from_sample_id(row['Sample_ID'])
+        
+        # 2. Creiamo l'oggetto data per il confronto
+        # Usiamo pd.Timestamp o datetime.date
+        extracted_date = pd.Timestamp(year=y, month=m, day=d)
+        
+        # 3. Confrontiamo con la colonna 'sampling_date'
+        # Restituisce True se sono uguali, False se sono diverse
+        return extracted_date == row['sampling_date']
+    
+    except (ValueError, IndexError):
+        # Se l'ID non ha 6 cifre o ha lettere (come 'B0'), la funzione darà errore.
+        # In questo caso, il controllo fallisce perché l'ID è malformato.
+        return False
+
+# Applichiamo il controllo a tutto il dataframe
+df['date_match'] = df.apply(check_sampling_date, axis=1)
+
+# Vediamo quante righe non corrispondono
+errors = df[df['date_match'] == False]
+print(f"Numero di discrepanze o ID malformati: {len(errors)}")
+print(errors[['Sample_ID', 'sampling_date']])
+
+
+
+def twentynines(date_start: str, date_end: str) -> int:
+    """
+    Calcola quanti '29 febbraio' sono presenti tra due date (incluse).
+    
+    Parametri:
+    date_start (str): Data iniziale nel formato "yyyy-mm-dd"
+    date_end (str): Data finale nel formato "yyyy-mm-dd"
+    
+    Ritorna:
+    int: Numero di giorni bisestili nell'intervallo.
+    
+    >>> twentynines("2002-02-01", "2005-12-31")
+    1
+    """
+    # Trasformiamo le stringhe in oggetti datetime per poterle confrontare
+    start = datetime.strptime(date_start, "%Y-%m-%d")
+    end = datetime.strptime(date_end, "%Y-%m-%d")
+    
+    leap_days_count = 0
+    
+    # Cicliamo attraverso tutti gli anni compresi nell'intervallo
+    for year in range(start.year, end.year + 1):
+        # Regola dell'anno bisestile:
+        # 1. Divisibile per 4
+        # 2. SE divisibile per 100 (anno secolare), DEVE essere divisibile anche per 400
+        is_leap = (year % 4 == 0) and (year % 100 != 0 or year % 400 == 0)
+        
+        if is_leap:
+            # Creiamo l'oggetto data per il 29 febbraio di quell'anno specifico
+            feb29 = datetime(year, 2, 29)
+            
+            # Verifichiamo se quel 29 febbraio cade dentro l'intervallo richiesto
+            if start <= feb29 <= end:
+                leap_days_count += 1
+                
+    return leap_days_count
+
+
+
+# 2. Estrazione del mese (da 1 a 12)
+df['sampling_month'] = df['sampling_date'].dt.month
+
+# 3. Suddivisione dei dati per sesso
+males = df[df['sex'] == 'M']
+females = df[df['sex'] == 'F']
+
+# 4. Creazione della figura con due subplot (uno accanto all'altro)
+fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 6), sharey=True)
+
+# Definiamo i nomi dei mesi per le etichette
+month_names = ['Gen', 'Feb', 'Mar', 'Apr', 'Mag', 'Giu', 'Lug', 'Ago', 'Set', 'Ott', 'Nov', 'Dic']
+
+# Grafico per i Maschi
+ax1.hist(males['sampling_month'], bins=range(1, 14), rwidth=0.8, color='skyblue', align='left')
+ax1.set_title('Orsi campionati per mese (Maschi)')
+ax1.set_xlabel('Mese')
+ax1.set_ylabel('Numero di Orsi')
+ax1.set_xticks(range(1, 13))
+ax1.set_xticklabels(month_names)
+
+# Grafico per le Femmine
+ax2.hist(females['sampling_month'], bins=range(1, 14), rwidth=0.8, color='pink', align='left')
+ax2.set_title('Orsi campionati per mese (Femmine)')
+ax2.set_xlabel('Mese')
+ax2.set_xticks(range(1, 13))
+ax2.set_xticklabels(month_names)
+
+plt.tight_layout()
+plt.show()
+
+# 1. Caricamento dati
+
+features = ['SLC12A5', 'POU4F2', 'VGF', 'SCGN']
+environments = df['environment'].unique()
+
+# 2. Creazione della figura 4x4
+fig, axes = plt.subplots(4, 4, figsize=(15, 15))
+
+# 3. Ciclo attraverso le righe e le colonne per creare i grafici a coppie
+for i, row_feat in enumerate(features):
+    for j, col_feat in enumerate(features):
+        ax = axes[i, j]
+        
+        # Coloriamo i punti in base all'ambiente
+        for env in environments:
+            subset = df[df['environment'] == env]
+            ax.scatter(subset[col_feat], subset[row_feat], label=env, alpha=0.7, edgecolors='w')
+        
+        # Impostiamo le etichette per gli assi esterni
+        if i == 3:
+            ax.set_xlabel(col_feat)
+        if j == 0:
+            ax.set_ylabel(row_feat)
+
+# Aggiunta della legenda globale
+handles, labels = axes[0, 0].get_legend_handles_labels()
+fig.legend(handles, labels, loc='upper right', title='Environment')
+
+plt.tight_layout()
+plt.show()
+
+
+
+# Variabili osservate
+M = df['age_days'].values
+VGF_obs = df['VGF'].values
+
+# 2. Definizione del modello PyMC
+with pm.Model() as model:
+    # Parametro alpha: Normale(mu=0, sigma=2)
+    alpha = pm.Normal('alpha', mu=0, sigma=2)
+    
+    # Parametro beta: Normale(mu=1, sigma=2)
+    beta = pm.Normal('beta', mu=1, sigma=2)
+    
+    # Parametro gamma: Esponenziale(lambda=1)
+    # In PyMC, lam è il parametro della distribuzione esponenziale
+    gamma = pm.Exponential('gamma', lam=1)
+    
+    # Media del modello: mu = alpha + beta * M
+    mu = alpha + beta * M
+    
+    # Verosimiglianza (Likelihood): VGF osservato ~ Normale(mu, gamma)
+    # Nota: gamma qui funge da deviazione standard (sigma)
+    vgf = pm.Normal('vgf_obs', mu=mu, sigma=gamma, observed=VGF_obs)
+    
+    # Campionamento (MCMC)
+    # draws=1000 è lo standard, tune=1000 serve per il riscaldamento (warm-up)
+    trace = pm.sample(draws=1000, tune=1000, chains=2, random_seed=42)
+
+# 3. Visualizzazione della distribuzione a posteriori
+az.plot_posterior(trace)
+plt.show()
+
+# Stampa del riassunto statistico (media, deviazione standard, intervalli HDI)
+print(az.summary(trace))
