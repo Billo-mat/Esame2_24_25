@@ -1,0 +1,33 @@
+import pandas as pd
+import matplotlib.pyplot as plt
+
+# 1. Caricamento dati
+df = pd.read_csv('brown_bear_blood.csv')
+features = ['SLC12A5', 'POU4F2', 'VGF', 'SCGN']
+environments = df['environment'].unique()
+
+# 2. Creazione della figura 4x4
+fig, axes = plt.subplots(4, 4, figsize=(15, 15))
+
+# 3. Ciclo attraverso le righe e le colonne per creare i grafici a coppie
+for i, row_feat in enumerate(features):
+    for j, col_feat in enumerate(features):
+        ax = axes[i, j]
+        
+        # Coloriamo i punti in base all'ambiente
+        for env in environments:
+            subset = df[df['environment'] == env]
+            ax.scatter(subset[col_feat], subset[row_feat], label=env, alpha=0.7, edgecolors='w')
+        
+        # Impostiamo le etichette per gli assi esterni
+        if i == 3:
+            ax.set_xlabel(col_feat)
+        if j == 0:
+            ax.set_ylabel(row_feat)
+
+# Aggiunta della legenda globale
+handles, labels = axes[0, 0].get_legend_handles_labels()
+fig.legend(handles, labels, loc='upper right', title='Environment')
+
+plt.tight_layout()
+plt.savefig('methylation_scatter_matrix.png')
