@@ -1,0 +1,37 @@
+from datetime import datetime
+def twentynines(date_start: str, date_end: str) -> int:
+    """
+    Calcola quanti '29 febbraio' sono presenti tra due date (incluse).
+    
+    Parametri:
+    date_start (str): Data iniziale nel formato "yyyy-mm-dd"
+    date_end (str): Data finale nel formato "yyyy-mm-dd"
+    
+    Ritorna:
+    int: Numero di giorni bisestili nell'intervallo.
+    
+    >>> twentynines("2002-02-01", "2005-12-31")
+    1
+    """
+    # Trasformiamo le stringhe in oggetti datetime per poterle confrontare
+    start = datetime.strptime(date_start, "%Y-%m-%d")
+    end = datetime.strptime(date_end, "%Y-%m-%d")
+    
+    leap_days_count = 0
+    
+    # Cicliamo attraverso tutti gli anni compresi nell'intervallo
+    for year in range(start.year, end.year + 1):
+        # Regola dell'anno bisestile:
+        # 1. Divisibile per 4
+        # 2. SE divisibile per 100 (anno secolare), DEVE essere divisibile anche per 400
+        is_leap = (year % 4 == 0) and (year % 100 != 0 or year % 400 == 0)
+        
+        if is_leap:
+            # Creiamo l'oggetto data per il 29 febbraio di quell'anno specifico
+            feb29 = datetime(year, 2, 29)
+            
+            # Verifichiamo se quel 29 febbraio cade dentro l'intervallo richiesto
+            if start <= feb29 <= end:
+                leap_days_count += 1
+                
+    return leap_days_count
