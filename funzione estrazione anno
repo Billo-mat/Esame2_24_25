@@ -1,0 +1,17 @@
+def date_from_sample_id(sample_id: str) -> tuple[int, int, int]:
+    """
+    Estrae anno, mese e giorno dai primi sei caratteri di una stringa.
+    L'anno viene calcolato sommando 2000 ai primi due caratteri.
+
+    >>> date_from_sample_id("201101 Daichi")
+    (2020, 11, 1)
+    """
+    # Estrazione delle sottostringhe e conversione in intero
+    year_digits = int(sample_id[0:2])
+    month = int(sample_id[2:4])
+    day = int(sample_id[4:6])
+    
+    # Calcolo dell'anno completo
+    year = 2000 + year_digits
+    
+    return year, month, day
